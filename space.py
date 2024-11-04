@@ -1,142 +1,274 @@
-import pygame  # Importa la biblioteca Pygame que permite crear juegos en Python
-import sys  # Importa el módulo sys, que proporciona acceso a algunas variables y funciones utilizadas o mantenidas por el intérprete
-import random  # Importa el módulo random, que permite generar números aleatorios
-import math  # Importa el módulo math, que proporciona acceso a funciones matemáticas (aunque no se utiliza en el código)
+import pygame  # Importe la bibliothèque Pygame qui permet de créer des jeux en Python
+import sys  # Importe le module sys, qui fournit l'accès à certaines variables et fonctions utilisées par l'interpréteur
+import random  # Importe le module random, qui permet de générer des nombres aléatoires
+import math  # Importe le module math, qui donne accès à des fonctions mathématiques
 
-pygame.init()  # Inicializa todos los módulos de Pygame
+pygame.init()  # Initialise tous les modules de Pygame
 
-# Configura la ventana del juego con un tamaño de 800x600 píxeles
+# Configure la fenêtre du jeu avec une taille de 800x600 pixels
 screen = pygame.display.set_mode((800, 600))
-# Establece el título de la ventana del juego
+# Définit le titre de la fenêtre du jeu
 pygame.display.set_caption("Space Invaders")
-
-# Carga la imagen de fondo para el juego
+# Charge l'image de fond pour le jeu
 fond = pygame.image.load('background.png')
 
-class Joueur:  # Define la clase Joueur (Jugador)
-    def __init__(self):  # Método constructor que inicializa el jugador
-        self.position = 400  # Posición horizontal inicial del jugador
-        self.image = pygame.image.load("vaisseau.png")  # Carga la imagen del jugador
-        self.sens = "O"  # Dirección en la que se mueve el jugador (O significa "ninguna" en este contexto)
-        self.vitesse = 5  # Velocidad de movimiento del jugador
-        self.score = 0  # Inicializa el puntaje del jugador
-        self.points_de_vie = 3  # Puntos de vida del jugador
-        self.niveau = 1  # Nivel del jugador
-        self.en_cours = True  # Indica si el juego está en curso
+# Charge le fichier de musique
+pygame.mixer.init()  # Initialise le module 
+pygame.mixer.music.load("byte-blast-8-bit-arcade-music-background-music-for-video-208780.mp3")
+pygame.mixer.music.play(-1)
+pygame.mixer.music.set_volume(0.1)
 
-    def afficher_score(self):  # Método para mostrar el puntaje del jugador
-        font = pygame.font.SysFont(None, 36)  # Crea una fuente para el texto
-        texte = font.render(f'Score: {self.score}', True, (255, 255, 255))  # Renderiza el texto del puntaje en blanco
-        screen.blit(texte, (10, 10))  # Dibuja el texto en la pantalla en la posición (10, 10)
+# Charge le son d'explosion
+explosion_sound = pygame.mixer.Sound("large-underwater-explosion-190270.mp3")
+# Charge l'image de l'explosion
+explosion_image = pygame.image.load("blast.png")  # Assurez-vous que le fichier 'blast.png' est dans le bon chemin
 
-    def augmenter_niveau(self):  # Método para aumentar el nivel del jugador
-        self.niveau += 1  # Incrementa el nivel en 1
 
-    def prendre_dommage(self):  # Método para manejar el daño al jugador
-        self.points_de_vie -= 1  # Reduce los puntos de vida en 1
-        if self.points_de_vie <= 0:  # Si los puntos de vida son 0 o menos
-            self.perdre()  # Llama al método perdre (perder)
+# Fonction pour afficher l'écran de démarrage
+def ecran_demarrage():
+    screen.fill((0, 0, 0))  # Remplit l'écran en noir
+    font = pygame.font.SysFont(None, 72)
+    texte_demarrage = font.render("Commencer", True, (255, 255, 255))  # Texte en blanc
+    screen.blit(texte_demarrage, (250, 250))  # Position au centre de l'écran
+    pygame.display.update()  # Affiche le message à l'écran
 
-    def perdre(self):  # Método que se llama cuando el jugador pierde
-        self.en_cours = False  # Cambia el estado del juego a no en curso
-        print("Game Over")  # Imprime "Game Over" en la consola
-        pygame.quit()  # Cierra Pygame
-        sys.exit()  # Termina el programa
+    # Attend que l'utilisateur appuie sur une touche pour commencer
+    en_attente = True
+    while en_attente:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.KEYDOWN:  # Détecte toute touche appuyée
+                en_attente = False  # Sort de la boucle et commence le jeu
 
-    def deplacer(self):  # Método para mover al jugador
-        if self.sens == "droite" and self.position < 740:  # Si se mueve a la derecha y no está en el borde derecho
-            self.position += self.vitesse  # Aumenta la posición del jugador
-        elif self.sens == "gauche" and self.position > 0:  # Si se mueve a la izquierda y no está en el borde izquierdo
-            self.position -= self.vitesse  # Disminuye la posición del jugador
+# Appelle l'écran de démarrage avant de commencer le jeu
+ecran_demarrage()
 
-class Balle:  # Define la clase Balle (Bala)
-    def __init__(self, tireur):  # Método constructor que recibe al tirador (jugador)
-        self.tireur = tireur  # Asigna el tirador
-        self.depart = tireur.position  # La posición inicial de la bala es la del tirador
-        self.hauteur = 492  # Altura inicial de la bala
-        self.image = pygame.image.load("balle.png")  # Carga la imagen de la bala
-        self.etat = "chargee"  # Estado inicial de la bala (cargada)
-        self.vitesse = 5  # Velocidad de la bala
+class Joueur:  # Définit la classe Joueur
+    def __init__(self):  # Méthode constructeur qui initialise le joueur
+        self.position = 400  # Position horizontale initiale du joueur
+        self.image = pygame.image.load("vaisseau.png")  # Charge l'image du joueur
+        self.sens = "O"  # Direction de déplacement du joueur ("O" signifie "aucune" dans ce contexte)
+        self.vitesse = 10  # Vitesse de déplacement du joueur
+        self.score = 0  # Initialise le score du joueur
+        self.points_de_vie = 10  # Points de vie du joueur
+        self.niveau = 1  # Niveau du joueur
+        self.en_cours = True  # Indique si le jeu est en cours
+        self.enemies_eliminated = 0  # Nouvelle variable pour compter les ennemis éliminés
 
-    def bouger(self):  # Método para mover la bala
-        if self.etat == "chargee":  # Si la bala está cargada
-            self.depart = self.tireur.position  # Actualiza la posición inicial de la bala
-            self.hauteur = 492  # Resetea la altura de la bala
-        elif self.etat == "tiree":  # Si la bala ha sido disparada
-            self.hauteur -= self.vitesse  # Disminuye la altura de la bala (se mueve hacia arriba)
-            if self.hauteur < 0:  # Si la bala sale de la pantalla
-                self.etat = "chargee"  # Resetea el estado de la bala a cargada
+    def afficher_score(self):  # Méthode pour afficher le score du joueur
+        font = pygame.font.SysFont(None, 36)  # Crée une police pour le texte
+        texte = font.render(f'Score: {self.score}', True, (255, 255, 255))  # Texte blanc pour le score
+        screen.blit(texte, (10, 10))  # Affiche le score à la position (10, 10)
+        # Affiche les points de vie du joueur
+        vie = font.render(f'Vie: {self.points_de_vie}', True, (255, 255, 255))
+        screen.blit(vie, (10, 50))
+        niveau = font.render(f'Level: {self.niveau}', True, (255, 255, 255))
+        screen.blit(niveau, (10, 90))
 
-    def toucher(self, ennemi):  # Método para verificar si la bala toca a un enemigo
-        if abs(self.hauteur - ennemi.hauteur) < 40 and abs(self.depart - ennemi.depart) < 40:  # Verifica la colisión
-            self.etat = "chargee"  # Resetea el estado de la bala a cargada
-            return True  # Devuelve verdadero si tocó al enemigo
-        return False  # Devuelve falso si no tocó
+    def augmenter_niveau(self):  # Méthode pour augmenter le niveau du joueur
+        self.niveau += 1  # Incrémente le niveau de 1
+        # Augmente la vitesse des ennemis à chaque niveau
+        for ennemi in listeEnnemis:
+            ennemi.vitesse += 0.2  # Augmente la vitesse de 0,2
 
-class Ennemi:  # Define la clase Ennemi (Enemigo)
-    NbEnnemis = 6  # Número máximo de enemigos
+    def prendre_dommage(self):  # Méthode pour gérer les dégâts subis par le joueur
+        self.points_de_vie -= 1  # Réduit les points de vie de 1
+        if self.points_de_vie <= 0:  # Si les points de vie sont égaux ou inférieurs à 0
+            self.perdre()  # Appelle la méthode perdre
 
-    def __init__(self):  # Método constructor para inicializar un enemigo
-        self.depart = random.randint(1, 700)  # Posición horizontal aleatoria del enemigo
-        self.hauteur = 10  # Altura inicial del enemigo
-        self.type = random.choice([1, 2])  # Elige aleatoriamente un tipo de enemigo
-        if self.type == 1:  # Si es del tipo 1
-            self.image = pygame.image.load("invader1.png")  # Carga la imagen del enemigo tipo 1
-            self.vitesse = 1  # Velocidad del enemigo tipo 1
-        else:  # Si es del tipo 2
-            self.image = pygame.image.load("invader2.png")  # Carga la imagen del enemigo tipo 2
-            self.vitesse = 2  # Velocidad del enemigo tipo 2
+    def perdre(self):  # Méthode appelée lorsque le joueur perd
+        font = pygame.font.SysFont(None, 72)  # Taille grande pour "Game Over"
+        game_over_text = font.render("Game Over", True, (255, 0, 0))  # Texte rouge
+        screen.blit(game_over_text, (300, 250))  # Position au centre de l'écran
+        pygame.display.update()  # Affiche le message à l'écran
+        pygame.time.delay(3000)  # Pause de 3 secondes avant de quitter
+        pygame.quit()
+        sys.exit()
 
-    def avancer(self):  # Método para mover al enemigo hacia abajo
-        self.hauteur += self.vitesse  # Aumenta la altura del enemigo según su velocidad
+    def deplacer(self):  # Méthode pour déplacer le joueur
+        if self.sens == "droite" and self.position < 740:  # Si le joueur se déplace vers la droite sans dépasser le bord
+            self.position += self.vitesse  # Augmente la position du joueur
+        elif self.sens == "gauche" and self.position > 0:  # Si le joueur se déplace vers la gauche sans dépasser le bord
+            self.position -= self.vitesse  # Diminue la position du joueur
 
-    def disparaitre(self):  # Método para hacer que el enemigo reaparezca
-        self.depart = random.randint(1, 700)  # Reasigna una posición horizontal aleatoria
-        self.hauteur = 10  # Resetea la altura del enemigo
+class Balle:  # Définit la classe Balle
+    def __init__(self, tireur):  # Méthode constructeur qui reçoit le tireur (joueur)
+        self.tireur = tireur  # Assigne le tireur
+        self.depart = tireur.position  # La position initiale de la balle est celle du tireur
+        self.hauteur = 492  # Hauteur initiale de la balle
+        self.image = pygame.image.load("bullets.png")  # Charge l'image de la balle
+        self.image = pygame.transform.scale(self.image, (40, 40))  # Redimensionne la balle
+        self.etat = "chargee"  # État initial de la balle (chargée)
+        self.vitesse = 20  # Vitesse de la balle
 
-# Création des objets (Creación de objetos)
-player = Joueur()  # Crea una instancia de la clase Joueur
-tir = Balle(player)  # Crea una instancia de la clase Balle asociada al jugador
-tir.etat = "chargee"  # Establece el estado de la bala como cargada
-listeEnnemis = [Ennemi() for _ in range(Ennemi.NbEnnemis)]  # Crea una lista de enemigos
+    def bouger(self):  # Méthode pour déplacer la balle
+        if self.etat == "chargee":  # Si la balle est chargée
+            self.depart = self.tireur.position  # Réinitialise la position de départ de la balle
+            self.hauteur = 492  # Réinitialise la hauteur de la balle
+        elif self.etat == "tiree":  # Si la balle a été tirée
+            self.hauteur -= self.vitesse  # Diminue la hauteur de la balle (se déplace vers le haut)
+            if self.hauteur < 0:  # Si la balle sort de l'écran
+                self.etat = "chargee"  # Réinitialise l'état de la balle en chargée
 
-running = True  # Variable que controla el bucle del juego
-while running:  # Bucle principal del juego
-    screen.blit(fond, (0, 0))  # Dibuja el fondo en la pantalla
-    player.afficher_score()  # Muestra el puntaje del jugador
+    def toucher(self, ennemi):  # Méthode pour vérifier si la balle touche un ennemi
+        if abs(self.hauteur - ennemi.hauteur) < 40 and abs(self.depart - ennemi.depart) < 40:  # Vérifie la collision
+            self.etat = "chargee"  # Réinitialise l'état de la balle
+            return True  # Renvoie vrai si la balle touche
+        return False  # Renvoie faux si pas de collision
 
-    for event in pygame.event.get():  # Procesa los eventos de Pygame
-        if event.type == pygame.QUIT:  # Si se recibe un evento de cierre de ventana
-            running = False  # Cambia el estado del bucle a falso
-            sys.exit()  # Termina la ejecución del programa
+# Nouvelle classe pour les balles des ennemis
+class BalleEnnemi:
+    def __init__(self, ennemi):
+        self.depart = ennemi.depart
+        self.hauteur = ennemi.hauteur + 20
+        self.image = pygame.image.load("balle.png")  # Image pour les balles ennemies
+        self.vitesse = 5
 
-        if event.type == pygame.KEYDOWN:  # Si se presiona una tecla
-            if event.key == pygame.K_LEFT:  # Si es la tecla de izquierda
-                player.sens = "gauche"  # Cambia la dirección del jugador a izquierda
-            elif event.key == pygame.K_RIGHT:  # Si es la tecla de derecha
-                player.sens = "droite"  # Cambia la dirección del jugador a derecha
-            elif event.key == pygame.K_SPACE:  # Si se presiona la barra espaciadora
-                tir.etat = "tiree"  # Cambia el estado de la bala a disparada
+    def bouger(self):
+        self.hauteur += self.vitesse  # La balle descend
 
-        if event.type == pygame.KEYUP:  # Si se suelta una tecla
-            if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT:  # Si es la tecla izquierda o derecha
-                player.sens = "O"  # Resetea la dirección del jugador a ninguna
+    def toucher_joueur(self, joueur):
+        return abs(self.hauteur - 500) < 20 and abs(self.depart - joueur.position) < 40
 
-    player.deplacer()  # Llama al método para mover al jugador
-    tir.bouger()  # Llama al método para mover la bala
+class Ennemi:  # Définit la classe Ennemi (Ennemi)
+    NbEnnemis = 6  # Nombre maximum d'ennemis
+
+    def __init__(self):  # Méthode constructeur pour initialiser un ennemi
+        self.depart = random.randint(1, 700)  # Position horizontale aléatoire de l'ennemi
+        self.hauteur = 10  # Hauteur initiale de l'ennemi
+        self.type = random.choice([1, 2, 3, 4])  # Choisit aléatoirement un type d'ennemi
+        if self.type == 1:  # Si c'est un ennemi de type 1
+            self.image = pygame.image.load("invader1.png")  # Charge l'image de l'ennemi de type 1
+            self.vitesse = 1  # Vitesse de l'ennemi de type 1
+        elif self.type == 2:  # Si c'est un ennemi de type 2
+            self.image = pygame.image.load("invader2.png")  # Charge l'image de l'ennemi de type 2
+            self.vitesse = 1  # Vitesse de l'ennemi de type 2
+        elif self.type == 3:  # Si c'est un ennemi de type 3
+            self.image = pygame.image.load("bleu.png")  # Charge l'image de l'ennemi de type 3
+            self.image = pygame.transform.scale(self.image, (60, 60))  # Taille 60x60
+            self.vitesse = 1  # Vitesse de l'ennemi de type 3
+        else:  # Si c'est un ennemi de type 4
+            self.type == 4  
+            self.image = pygame.image.load("violette.png")  # Charge l'image de l'ennemi de type 4
+            self.image = pygame.transform.scale(self.image, (60, 60))  # Taille 60x60
+            self.vitesse = 1  # Vitesse de l'ennemi de type 4
+            self.sens = "droite"  # Direction initiale de l'ennemi
+
+    def avancer(self):  # Méthode pour déplacer l'ennemi vers le bas
+        self.hauteur += self.vitesse  # Augmente la hauteur de l'ennemi selon sa vitesse
+
+    def disparaitre(self):  # Méthode pour faire réapparaître l'ennemi
+        self.depart = random.randint(1, 700)  # Réassigne une position horizontale aléatoire
+        self.hauteur = 10  # Réinitialise la hauteur de l'ennemi
+
+    def deplacer(self):  # Assure que cette méthode est présente dans la classe Ennemi
+        self.hauteur += self.vitesse
+
+
+class Explosion:  # Classe Explosion pour gérer les explosions
+    def __init__(self, position):  # Constructeur
+        self.image = explosion_image  # Image de l'explosion
+        self.position = position  # Position de l'explosion
+        self.duree = 2  # Durée de l'explosion
+        self.temps_vie = 0  # Compteur de durée de vie
+
+    def afficher(self):  # Méthode pour afficher l'explosion
+        if self.duree > 0:  # Si la durée est supérieure à 0
+            screen.blit(self.image, self.position)  # Dessine l'image de l'explosion à la position
+            self.duree -= 1  # Diminue la durée
+
+    def bouger(self):
+        if self.visible:
+            self.hauteur += self.vitesse
+
+    def toucher_joueur(self, joueur):
+        if self.visible and abs(self.hauteur - 500) < 40 and abs(self.position - joueur.position) < 40:
+            self.visible = False
+            return True
+        return False
+
+# Création des objets
+player = Joueur()  # Crée une instance de la classe Joueur
+tir = Balle(player)  # Crée une instance de la classe Balle associée au joueur
+tir.etat = "chargee"  # Définit l'état de la balle comme chargée
+listeEnnemis = [Ennemi() for _ in range(Ennemi.NbEnnemis)]  # Crée une liste d'ennemis
+explosions = []  # Liste pour stocker les explosions
+balle_ennemi = []
+
+
+running = True  # Variable qui contrôle la boucle du jeu
+while running:  # Boucle principale du jeu
+    screen.blit(fond, (0, 0))  # Affiche le fond à l'écran
+    player.afficher_score()  # Affiche le score du joueur
+
+    for event in pygame.event.get():  # Traite les événements de Pygame
+        if event.type == pygame.QUIT:  # Si un événement de fermeture de fenêtre est reçu
+            running = False  # Change l'état de la boucle à faux
+            sys.exit()  # Termine l'exécution du programme
+
+        if event.type == pygame.KEYDOWN:  # Si une touche est enfoncée
+            if event.key == pygame.K_LEFT:  # Si c'est la touche gauche
+                player.sens = "gauche"  # Change la direction du joueur vers la gauche
+            elif event.key == pygame.K_RIGHT:  # Si c'est la touche droite
+                player.sens = "droite"  # Change la direction du joueur vers la droite
+            elif event.key == pygame.K_SPACE:  # Si la barre d'espace est enfoncée
+                tir.etat = "tiree"  # Change l'état de la balle à tirée
+
+        if event.type == pygame.KEYUP:  # Si une touche est relâchée
+            if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT:  # Si c'est la touche gauche ou droite
+                player.sens = "O"  # Réinitialise la direction du joueur à aucune
+
+    player.deplacer()  # Appelle la méthode pour déplacer le joueur
+    tir.bouger()  # Appelle la méthode pour déplacer la balle
+    # Met à jour l'état de chaque ennemi
+    for ennemi in listeEnnemis:
+        ennemi.deplacer()
+        if ennemi.hauteur > 500:
+            player.prendre_dommage()
+            listeEnnemis.remove(ennemi)
+            listeEnnemis.append(Ennemi())
+
+        if tir.toucher(ennemi):
+            explosion_sound.play()
+            player.score += 10
+            player.enemies_eliminated += 1
+            listeEnnemis.remove(ennemi)
+            listeEnnemis.append(Ennemi())
+            explosions.append(Explosion((ennemi.depart, ennemi.hauteur)))
+        # Vérifie si le joueur a éliminé quatre ennemis pour monter de niveau
+        if player.enemies_eliminated >= 4:
+            player.augmenter_niveau()  # Augmente le niveau
+            player.enemies_eliminated = 0  # Réinitialise le compteur d'ennemis éliminés
+
+        # Logique pour que les ennemis tirent
+        if random.randint(1, 500) == 1:  # 1/500 de probabilité par image
+            balle_ennemi.append(BalleEnnemi(ennemi))
+
+    # Déplace et vérifie les balles des ennemis
+    for balle in balle_ennemi[:]:
+        balle.bouger()
+        if balle.toucher_joueur(player):
+            player.prendre_dommage()
+            balle_ennemi.remove(balle)
+        elif balle.hauteur > 600:
+            balle_ennemi.remove(balle)
+    # Dessine les balles des ennemis
+    for balle in balle_ennemi:
+        screen.blit(balle.image, (balle.depart, balle.hauteur))
+
+    # Met à jour et dessine les explosions
+    for explosion in explosions:
+        explosion.afficher()
+        if explosion.duree <= 0:
+            explosions.remove(explosion)
+
+    # Dessine le joueur, la balle et les ennemis
+    screen.blit(player.image, (player.position, 500))
+    screen.blit(tir.image, (tir.depart, tir.hauteur))
+    for ennemi in listeEnnemis:
+        screen.blit(ennemi.image, (ennemi.depart, ennemi.hauteur))
     
-    for ennemi in listeEnnemis:  # Recorre la lista de enemigos
-        ennemi.avancer()  # Mueve al enemigo
-        if tir.toucher(ennemi):  # Verifica si la bala toca al enemigo
-            ennemi.disparaitre()  # Si se toca, hace que el enemigo reaparezca en una nueva posición
-            player.score += 1  # Incrementa el puntaje del jugador en 1
-
-    # Dibuja la imagen del jugador en la posición actual
-    screen.blit(player.image, (player.position, 500))  
-    if tir.etat == "tiree":  # Si la bala está en estado "tiree" (disparada)
-        screen.blit(tir.image, (tir.depart, tir.hauteur))  # Dibuja la bala en la pantalla
-
-    for ennemi in listeEnnemis:  # Recorre la lista de enemigos
-        screen.blit(ennemi.image, (ennemi.depart, ennemi.hauteur))  # Dibuja cada enemigo en la pantalla
-
-    pygame.display.update()  # Actualiza la pantalla para mostrar todos los cambios
+    pygame.mixer.music.stop
+    pygame.display.update()  # Met à jour l'écran pour afficher tous les changements
