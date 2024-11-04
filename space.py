@@ -21,7 +21,7 @@ pygame.mixer.music.set_volume(0.1)
 # Charge le son d'explosion
 explosion_sound = pygame.mixer.Sound("large-underwater-explosion-190270.mp3")
 # Charge l'image de l'explosion
-explosion_image = pygame.image.load("blast.png")  # Assurez-vous que le fichier 'blast.png' est dans le bon chemin
+explosion_image = pygame.image.load("blast.png") 
 
 
 # Fonction pour afficher l'écran de démarrage
