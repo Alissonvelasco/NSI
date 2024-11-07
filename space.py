@@ -56,6 +56,9 @@ class Joueur:  # Définit la classe Joueur
         self.niveau = 1  # Niveau du joueur
         self.en_cours = True  # Indique si le jeu est en cours
         self.enemies_eliminated = 0  # Nouvelle variable pour compter les ennemis éliminés
+        self.cups = 0  # Compteur de coupes obtenues
+
+
 
     def afficher_score(self):  # Méthode pour afficher le score du joueur
         font = pygame.font.SysFont(None, 36)  # Crée une police pour le texte
@@ -66,12 +69,26 @@ class Joueur:  # Définit la classe Joueur
         screen.blit(vie, (10, 50))
         niveau = font.render(f'Level: {self.niveau}', True, (255, 255, 255))
         screen.blit(niveau, (10, 90))
+        cups_text = font.render(f'Coupes: {self.cups}', True, (255, 255, 0))  # Texte des coupes
+        screen.blit(cups_text, (10, 130))  # Afficher les coupes à l'écran
+
 
     def augmenter_niveau(self):  # Méthode pour augmenter le niveau du joueur
         self.niveau += 1  # Incrémente le niveau de 1
         # Augmente la vitesse des ennemis à chaque niveau
         for ennemi in listeEnnemis:
-            ennemi.vitesse += 0.2  # Augmente la vitesse de 0,2
+            ennemi.vitesse += 0.2  # Augmente la vitesse de 0,2      
+         #À partir du niveau 5, tous les ennemis se déplacent en zigzag
+        if self.niveau >= 4 and self.niveau <= 7:
+            for i in range(len(listeEnnemis)):
+                if not isinstance(listeEnnemis[i], EnnemiZigzag):  # Si ce n'est pas déjà un EnnemiZigzag
+                    listeEnnemis[i] = EnnemiZigzag()  # Remplace l'ennemi par un EnnemiZigzag
+
+        # Mouvement horizontal des ennemis entre les niveaux 7 et 12
+        if self.niveau >= 7 and self.niveau <= 12:
+            for i in range(len(listeEnnemis)):
+                if not isinstance(listeEnnemis[i], EnnemiHorizontal):
+                    listeEnnemis[i] = EnnemiHorizontal()
 
     def prendre_dommage(self):  # Méthode pour gérer les dégâts subis par le joueur
         self.points_de_vie -= 1  # Réduit les points de vie de 1
@@ -101,7 +118,7 @@ class Balle:  # Définit la classe Balle
         self.image = pygame.image.load("bullets.png")  # Charge l'image de la balle
         self.image = pygame.transform.scale(self.image, (40, 40))  # Redimensionne la balle
         self.etat = "chargee"  # État initial de la balle (chargée)
-        self.vitesse = 20  # Vitesse de la balle
+        self.vitesse = 30  # Vitesse de la balle
 
     def bouger(self):  # Méthode pour déplacer la balle
         if self.etat == "chargee":  # Si la balle est chargée
@@ -131,6 +148,7 @@ class BalleEnnemi:
 
     def toucher_joueur(self, joueur):
         return abs(self.hauteur - 500) < 20 and abs(self.depart - joueur.position) < 40
+    
 
 class Ennemi:  # Définit la classe Ennemi (Ennemi)
     NbEnnemis = 6  # Nombre maximum d'ennemis
@@ -165,7 +183,43 @@ class Ennemi:  # Définit la classe Ennemi (Ennemi)
 
     def deplacer(self):  # Assure que cette méthode est présente dans la classe Ennemi
         self.hauteur += self.vitesse
+        
+class EnnemiZigzag(Ennemi):  # Nouvelle classe pour l'ennemi en zigzag
+    def __init__(self):
+        super().__init__()  # Appelle le constructeur de la classe Ennemi
+        self.sens = "droite"  # Commence à se déplacer vers la droite
+        self.amplitude = 50  # Amplitude du mouvement en zigzag
+        self.vitesse_zigzag = 6  # Vitesse du mouvement zigzag
 
+    def deplacer(self):  # Méthode de déplacement en zigzag
+        # Déplacement vertical habituel
+        self.hauteur += self.vitesse
+
+        # Déplacement en zigzag
+        if self.sens == "droite":
+            self.depart += self.vitesse_zigzag
+            if self.depart > 800 - self.amplitude:  # Si atteint le bord droit
+                self.sens = "gauche"  # Change la direction vers la gauche
+        elif self.sens == "gauche":
+            self.depart -= self.vitesse_zigzag
+            if self.depart < self.amplitude:  # Si atteint le bord gauche
+                self.sens = "droite"  # Change la direction vers la droite
+
+class EnnemiHorizontal(Ennemi):
+    def __init__(self):
+        super().__init__()  # Appelle le constructeur de la classe parent Ennemi
+        self.sens_horizontal = random.choice(["gauche", "droite"])  # Sens initial du mouvement horizontal
+    def deplacer(self):
+        self.hauteur += self.vitesse
+        # Mouvement horizontal
+        if self.sens_horizontal == "droite":
+            self.depart += self.vitesse
+            if self.depart > 740:  # Limite le mouvement horizontal (vers la droite)
+                self.sens_horizontal = "gauche"
+        else:
+            self.depart -= self.vitesse
+            if self.depart < 0:  # Limite le mouvement horizontal (vers la gauche)
+                self.sens_horizontal = "droite"
 
 class Explosion:  # Classe Explosion pour gérer les explosions
     def __init__(self, position):  # Constructeur
@@ -201,7 +255,7 @@ balle_ennemi = []
 running = True  # Variable qui contrôle la boucle du jeu
 while running:  # Boucle principale du jeu
     screen.blit(fond, (0, 0))  # Affiche le fond à l'écran
-    player.afficher_score()  # Affiche le score du joueur
+    player.afficher_score()  # Affiche le score du joueur et les coupes
 
     for event in pygame.event.get():  # Traite les événements de Pygame
         if event.type == pygame.QUIT:  # Si un événement de fermeture de fenêtre est reçu
@@ -238,7 +292,8 @@ while running:  # Boucle principale du jeu
             listeEnnemis.append(Ennemi())
             explosions.append(Explosion((ennemi.depart, ennemi.hauteur)))
         # Vérifie si le joueur a éliminé quatre ennemis pour monter de niveau
-        if player.enemies_eliminated >= 4:
+        if player.enemies_eliminated >= 5:
+            player.cups += 1  # Augmenter les coupes
             player.augmenter_niveau()  # Augmente le niveau
             player.enemies_eliminated = 0  # Réinitialise le compteur d'ennemis éliminés
 
