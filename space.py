@@ -212,7 +212,7 @@ class EnnemiHorizontal(Ennemi):
         # Mouvement horizontal
         if self.sens_horizontal == "droite":
             self.depart += self.vitesse
-            if self.depart > 740:  # Limite le mouvement horizontal (vers la droite)
+            if self.depart > 700:  # Limite le mouvement horizontal (vers la droite)
                 self.sens_horizontal = "gauche"
         else:
             self.depart -= self.vitesse
