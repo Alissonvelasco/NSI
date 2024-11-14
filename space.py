@@ -81,14 +81,12 @@ class Joueur:  # Définit la classe Joueur
          #À partir du niveau 5, tous les ennemis se déplacent en zigzag
         if self.niveau >= 4 and self.niveau <= 7:
             for i in range(len(listeEnnemis)):
-                if not isinstance(listeEnnemis[i], EnnemiZigzag):  # Si ce n'est pas déjà un EnnemiZigzag
-                    listeEnnemis[i] = EnnemiZigzag()  # Remplace l'ennemi par un EnnemiZigzag
+                listeEnnemis[i] = EnnemiZigzag()  # Remplace l'ennemi par un EnnemiZigzag
 
         # Mouvement horizontal des ennemis entre les niveaux 7 et 12
         if self.niveau >= 7 and self.niveau <= 12:
             for i in range(len(listeEnnemis)):
-                if not isinstance(listeEnnemis[i], EnnemiHorizontal):
-                    listeEnnemis[i] = EnnemiHorizontal()
+                listeEnnemis[i] = EnnemiHorizontal()
 
     def prendre_dommage(self):  # Méthode pour gérer les dégâts subis par le joueur
         self.points_de_vie -= 1  # Réduit les points de vie de 1
@@ -188,8 +186,8 @@ class EnnemiZigzag(Ennemi):  # Nouvelle classe pour l'ennemi en zigzag
     def __init__(self):
         super().__init__()  # Appelle le constructeur de la classe Ennemi
         self.sens = "droite"  # Commence à se déplacer vers la droite
-        self.amplitude = 50  # Amplitude du mouvement en zigzag
-        self.vitesse_zigzag = 6  # Vitesse du mouvement zigzag
+        self.amplitude = 10  # Amplitude du mouvement en zigzag
+        self.vitesse_zigzag = 3  # Vitesse du mouvement zigzag
 
     def deplacer(self):  # Méthode de déplacement en zigzag
         # Déplacement vertical habituel
