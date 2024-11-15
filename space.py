@@ -83,11 +83,7 @@ class Joueur:  # Définit la classe Joueur
             for i in range(len(listeEnnemis)):
                 listeEnnemis[i] = EnnemiZigzag()  # Remplace l'ennemi par un EnnemiZigzag
 
-        # Mouvement horizontal des ennemis entre les niveaux 7 et 12
-        if self.niveau >= 7 and self.niveau <= 12:
-            for i in range(len(listeEnnemis)):
-                listeEnnemis[i] = EnnemiHorizontal()
-
+        
     def prendre_dommage(self):  # Méthode pour gérer les dégâts subis par le joueur
         self.points_de_vie -= 1  # Réduit les points de vie de 1
         if self.points_de_vie <= 0:  # Si les points de vie sont égaux ou inférieurs à 0
@@ -196,28 +192,61 @@ class EnnemiZigzag(Ennemi):  # Nouvelle classe pour l'ennemi en zigzag
         # Déplacement en zigzag
         if self.sens == "droite":
             self.depart += self.vitesse_zigzag
-            if self.depart > 800 - self.amplitude:  # Si atteint le bord droit
+            if self.depart > 700 - self.amplitude:  # Si atteint le bord droit
                 self.sens = "gauche"  # Change la direction vers la gauche
         elif self.sens == "gauche":
             self.depart -= self.vitesse_zigzag
             if self.depart < self.amplitude:  # Si atteint le bord gauche
                 self.sens = "droite"  # Change la direction vers la droite
+class BalleClone:
+    def __init__(self, clone):
+        self.depart = clone.depart  # La posición inicial de la balle
+        self.hauteur = clone.hauteur + 10  # Comienza un poco debajo del clone
+        self.image = pygame.image.load("balle.png")  # 
+        self.vitesse = 5  # Vitesse  de la balle
+        self.sens = "joueur"  # La balle vers el joueur
 
-class EnnemiHorizontal(Ennemi):
+    def bouger(self):
+        if self.sens == "joueur":  # Si la bala va hacia el jugador
+            self.hauteur += self.vitesse  # Baja la bala
+
+    def toucher_joueur(self, joueur):
+        # Si la balle touche le joueur, il perd de la vie
+        return abs(self.hauteur - 500) < 20 and abs(self.depart - joueur.position) < 40
+
+class CloneEnnemi:
     def __init__(self):
-        super().__init__()  # Appelle le constructeur de la classe parent Ennemi
-        self.sens_horizontal = random.choice(["gauche", "droite"])  # Sens initial du mouvement horizontal
+        # Charger et faire pivoter l'image du joueur de 180 degrés
+        self.image = pygame.transform.rotate(pygame.image.load("spaceship.png"), 180)
+        self.image = pygame.transform.scale(self.image, (60, 60))
+        self.depart = random.randint(1, 700)  # Position initiale aléatoire sur l'axe x
+        self.hauteur = 10  # Commence en haut de l'écran
+        self.vitesse = 3  # Vitesse de déplacement du clone
+        self.balles = []  # Liste pour stocker les balles tirées par le clone
+
+
     def deplacer(self):
+        # Déplacement vertical vers le bas
         self.hauteur += self.vitesse
-        # Mouvement horizontal
-        if self.sens_horizontal == "droite":
-            self.depart += self.vitesse
-            if self.depart > 700:  # Limite le mouvement horizontal (vers la droite)
-                self.sens_horizontal = "gauche"
-        else:
-            self.depart -= self.vitesse
-            if self.depart < 0:  # Limite le mouvement horizontal (vers la gauche)
-                self.sens_horizontal = "droite"
+        # Si le clone sort de l'écran, il réapparaît en haut
+        if self.hauteur > 600:
+            self.depart = random.randint(1, 700)
+            self.hauteur = 10
+
+    def tirer_balle(self):
+        # Probabilité que le clone tire une balle (1 chance sur 60 à chaque frame)
+        if random.randint(1, 60) == 1:
+            self.balles.append(BalleEnnemi(self))  # Crée une balle comme les ennemis normaux
+
+    def update_balles(self):
+        # Déplace chaque balle du clone et les supprime si elles sont hors écran ou touchent le joueur
+        for balle in self.balles[:]:
+            balle.bouger()
+            if balle.toucher_joueur(player):
+                player.prendre_dommage()  # Le joueur prend des dégâts s’il est touché
+                self.balles.remove(balle)  # Supprime la balle qui a touché
+            elif balle.hauteur > 600:
+                self.balles.remove(balle)  # Supprime les balles hors de l'écran
 
 class Explosion:  # Classe Explosion pour gérer les explosions
     def __init__(self, position):  # Constructeur
@@ -248,6 +277,7 @@ tir.etat = "chargee"  # Définit l'état de la balle comme chargée
 listeEnnemis = [Ennemi() for _ in range(Ennemi.NbEnnemis)]  # Crée une liste d'ennemis
 explosions = []  # Liste pour stocker les explosions
 balle_ennemi = []
+liste_clones = []  # Liste des clones
 
 
 running = True  # Variable qui contrôle la boucle du jeu
@@ -276,11 +306,11 @@ while running:  # Boucle principale du jeu
     tir.bouger()  # Appelle la méthode pour déplacer la balle
     # Met à jour l'état de chaque ennemi
     for ennemi in listeEnnemis:
-        ennemi.deplacer()
+        ennemi.deplacer()  # Appelle la méthode de déplacement de chaque ennemi
         if ennemi.hauteur > 500:
             player.prendre_dommage()
             listeEnnemis.remove(ennemi)
-            listeEnnemis.append(Ennemi())
+            listeEnnemis.append(Ennemi())    # Remplace l'ennemi détruit par un nouveau
 
         if tir.toucher(ennemi):
             explosion_sound.play()
@@ -296,7 +326,7 @@ while running:  # Boucle principale du jeu
             player.enemies_eliminated = 0  # Réinitialise le compteur d'ennemis éliminés
 
         # Logique pour que les ennemis tirent
-        if random.randint(1, 500) == 1:  # 1/500 de probabilité par image
+        if random.randint(2, 500) == 1:  # 1/500 de probabilité par image
             balle_ennemi.append(BalleEnnemi(ennemi))
 
     # Déplace et vérifie les balles des ennemis
@@ -323,5 +353,24 @@ while running:  # Boucle principale du jeu
     for ennemi in listeEnnemis:
         screen.blit(ennemi.image, (ennemi.depart, ennemi.hauteur))
     
+# générer plusieurs clones entre les niveaux 5 et 10
+    if 8 <= player.niveau <= 10 and len(liste_clones) < 5:  # Limite à 5 clones
+        if random.randint(1, 100) <= 10:  # 10% de probabilité par frame
+            clone = CloneEnnemi()  # Crée un clone
+            liste_clones.append(clone)  # Ajoute le clone à la liste des clones
+
+    # Déplacer et gérer les balles des clones
+    for clone in liste_clones:
+        clone.deplacer()  # Déplace le clone vers le bas
+        clone.tirer_balle()  # Le clone a la possibilité de tirer une balle
+        clone.update_balles()  # Met à jour les balles tirées par le clone
+        screen.blit(clone.image, (clone.depart, clone.hauteur))  # Affiche le clone
+    # Afficher les clones et leurs balles
+    for clone in liste_clones:
+        screen.blit(clone.image, (clone.depart, clone.hauteur))  # Affiche chaque clone
+        for balle in clone.balles:
+            screen.blit(balle.image, (balle.depart, balle.hauteur))  # Affiche les balles du clone
+
+
     pygame.mixer.music.stop
     pygame.display.update()  # Met à jour l'écran pour afficher tous les changements
